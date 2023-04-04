@@ -3,7 +3,7 @@ from scipy.io import mmwrite
 
 
 def main():
-    dens = 0.2
+    dens = 0.3
     for n in range(2,5):
 
         m = random(10**n, 10**n, dens)

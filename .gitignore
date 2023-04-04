@@ -1,0 +1,9 @@
+a.out
+*.a
+*.so
+build
+data/*.mtx
+gmon.out
+perf.data
+analysis.txt
+.vscode
