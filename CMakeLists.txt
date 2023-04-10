@@ -4,7 +4,9 @@ project(mmio)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE BOOL "Export compile commands to build directory" FORCE)
 
-set(CMAKE_C_FLAGS "-std=c11 ${CMAKE_C_FLAGS} -g -pg -Wall -O3 -fPIC")
+set(COMMON_FLAGS "-g -pg -Wall -O3 -fPIC")
+set(CMAKE_C_FLAGS "-std=c11 ${CMAKE_C_FLAGS} ${COMMON_FLAGS}")
+set(CMAKE_CXX_FLAGS "-std=c++17 ${CMAKE_CXX_FLAGS} ${COMMON_FLAGS}")
 
 find_package(OpenMP REQUIRED)
 

@@ -16,3 +16,26 @@ target_link_libraries(
     m
     OpenMP::OpenMP_C
     )
+
+# Get and install fast_matrix_market
+include(FetchContent)
+FetchContent_Declare(
+        fast_matrix_market
+        GIT_REPOSITORY https://github.com/alugowski/fast_matrix_market
+        GIT_TAG main
+        GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(fast_matrix_market)
+
+
+add_executable(fmm_read fmm_read.cpp)
+target_include_directories(
+    fmm_read PRIVATE 
+    ${CMAKE_SOURCE_DIR}/include
+    /home/james/apps/GraphBLAS/build/install/include/
+    )
+target_link_libraries(fmm_read fast_matrix_market::fast_matrix_market
+    /home/james/apps/GraphBLAS/build/install/lib/libgraphblas.a
+    m
+    OpenMP::OpenMP_C
+)
