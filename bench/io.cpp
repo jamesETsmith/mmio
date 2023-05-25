@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
   end = str.find("\n", start);
 
   // size_t data_line = 0;
-  auto find_time_start = std::chrono::steady_clock::now();
+  // auto find_time_start = std::chrono::steady_clock::now();
   for (size_t i = 0; i < nnz; i++) {
     line_start[i] = start;
     line_end[i] = end;
@@ -97,33 +97,36 @@ int main(int argc, char** argv) {
     start = end + 1;
     end = str.find("\n", start);
   }
-  double find_time = std::chrono::duration<double>(
-                         std::chrono::steady_clock::now() - find_time_start)
-                         .count();
+  // double find_time = std::chrono::duration<double>(
+  //                        std::chrono::steady_clock::now() - find_time_start)
+  //                        .count();
 
   line_end.back() = filesize;
   // std::cout << line_end.back() << std::endl;
 
   // Read the rest of the data
-  double split_time = 0;
-  double from_chars_time = 0;
-#pragma omp parallel for reduction(+ : split_time, from_chars_time)
+  // double split_time = 0;
+  // double from_chars_time = 0;
+// #pragma omp parallel for reduction(+ : split_time, from_chars_time)
+#pragma omp parallel for
   for (size_t i = 0; i < nnz; i++) {
     // =( std::string_view initialization
     std::string_view sv(&str[0] + line_start[i], line_end[i] - line_start[i]);
-    auto st_i = std::chrono::steady_clock::now();
+    // auto st_i = std::chrono::steady_clock::now();
     std::vector<std::string_view> toks = split(sv);
-    split_time +=
-        std::chrono::duration<double>(std::chrono::steady_clock::now() - st_i)
-            .count();
+    // split_time +=
+    //     std::chrono::duration<double>(std::chrono::steady_clock::now() -
+    //     st_i)
+    //         .count();
 
-    auto fc_i = std::chrono::steady_clock::now();
+    // auto fc_i = std::chrono::steady_clock::now();
     from_chars_range(toks[0], e_in[i]);
     from_chars_range(toks[1], e_out[i]);
     from_chars_range(toks[2], e_weight[i]);
-    from_chars_time +=
-        std::chrono::duration<double>(std::chrono::steady_clock::now() - fc_i)
-            .count();
+    // from_chars_time +=
+    //     std::chrono::duration<double>(std::chrono::steady_clock::now() -
+    //     fc_i)
+    //         .count();
   }
 
   // Logging
@@ -133,10 +136,11 @@ int main(int argc, char** argv) {
   std::cout << "Last edge: " << e_in.back() << " " << e_out.back() << " "
             << e_weight.back() << std::endl;
 
-  std::cout << "Find time            (cumulative): " << find_time << std::endl;
-  std::cout << "Split time           (cumulative): " << split_time << std::endl;
-  std::cout << "std::from_chars time (cumulative): " << from_chars_time
-            << std::endl;
+  // std::cout << "Find time            (cumulative): " << find_time <<
+  // std::endl; std::cout << "Split time           (cumulative): " << split_time
+  // << std::endl; std::cout << "std::from_chars time (cumulative): " <<
+  // from_chars_time
+  //           << std::endl;
 
   return 0;
 }

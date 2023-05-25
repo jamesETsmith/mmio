@@ -1,4 +1,3 @@
-#include <fast_matrix_market/app/GraphBLAS.hpp>
 #include <fast_matrix_market/fast_matrix_market.hpp>
 #include <fstream>
 
@@ -8,8 +7,14 @@ int main(int argc, char* argv[]) {
     exit(1);
   }
 
-  GrB_Matrix A;
+  struct triplet_matrix {
+    int64_t nrows = 0, ncols = 0;
+    std::vector<int64_t> rows, cols;
+    std::vector<double> vals;  // or int64_t, float, std::complex<double>, etc.
+  } mat;
+
   std::ifstream f(argv[1]);
-  fast_matrix_market::read_matrix_market_graphblas(f, &A);
+  fast_matrix_market::read_matrix_market_triplet(f, mat.nrows, mat.ncols,
+                                                 mat.rows, mat.cols, mat.vals);
   return 0;
 }

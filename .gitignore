@@ -7,3 +7,5 @@ gmon.out
 perf.data
 analysis.txt
 .vscode
+scratch
+*.log

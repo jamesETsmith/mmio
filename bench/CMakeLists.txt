@@ -2,6 +2,9 @@ add_executable(mmio_read mmio_read.c)
 target_include_directories(mmio_read PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(mmio_read PRIVATE mmio)
 
+add_executable(io io.cpp)
+target_link_libraries(io OpenMP::OpenMP_CXX)
+
 add_executable(lagr_mmio_read lagr_mmio_read.c)
 target_include_directories(
     lagr_mmio_read PRIVATE 
@@ -37,5 +40,5 @@ target_include_directories(
 target_link_libraries(fmm_read fast_matrix_market::fast_matrix_market
     /home/james/apps/GraphBLAS/build/install/lib/libgraphblas.a
     m
-    OpenMP::OpenMP_C
+    OpenMP::OpenMP_CXX
 )
