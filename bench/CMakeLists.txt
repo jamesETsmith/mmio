@@ -5,6 +5,9 @@ target_link_libraries(mmio_read PRIVATE mmio)
 add_executable(io io.cpp)
 target_link_libraries(io OpenMP::OpenMP_CXX)
 
+add_executable(io_c io_c.c)
+target_link_libraries(io_c OpenMP::OpenMP_C)
+
 add_executable(lagr_mmio_read lagr_mmio_read.c)
 target_include_directories(
     lagr_mmio_read PRIVATE 
