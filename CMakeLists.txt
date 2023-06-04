@@ -14,4 +14,22 @@ add_library(mmio src/mmio.c)
 set_property(TARGET mmio PROPERTY C_STANDARD 11)
 target_include_directories(mmio PRIVATE include)
 
+
+# Get and install fast_matrix_market
+include(FetchContent)
+FetchContent_Declare(
+        fast_matrix_market
+        GIT_REPOSITORY https://github.com/alugowski/fast_matrix_market
+        GIT_TAG main
+        GIT_SHALLOW TRUE
+)
+
+FetchContent_Declare(
+        PIGO
+        GIT_REPOSITORY https://github.com/GT-TDAlab/PIGO
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(fast_matrix_market PIGO)
+
 add_subdirectory(bench)
