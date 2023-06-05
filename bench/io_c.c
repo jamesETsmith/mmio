@@ -41,8 +41,8 @@ void print_time(time_t t_start, const char* msg) {
   printf("Time for %16s: %.6lf (s)\n", msg, t_total);
 }
 
-int find_chunk_boundaries(char* data, size_t buff_size, size_t* start,
-                          size_t* end, size_t* n_newlines) {
+inline int find_chunk_boundaries(char* data, size_t buff_size, size_t* start,
+                                 size_t* end, size_t* n_newlines) {
   // Find the new start
   if (omp_get_thread_num() != 0) {
     size_t curr = *start;
