@@ -36,6 +36,9 @@ jobs:
               echo "CC=gcc-${VERSION}" >> "$GITHUB_ENV"
               echo "CXX=g++-${VERSION}" >> "$GITHUB_ENV"
           elif [[ "${FAMILY}" == llvm ]]; then
+              if [[ "${VERSION}" == 15 ]]; then
+                sudo apt-get dist-upgrade
+              fi
               wget https://apt.llvm.org/llvm.sh
               chmod +x llvm.sh
               sudo ./llvm.sh ${VERSION} all
