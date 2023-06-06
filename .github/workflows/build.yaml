@@ -7,33 +7,45 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - c_compiler: gcc-11
-            cxx_compiler: g++-11
-          - c_compiler: gcc-12
-            cxx_compiler: gxx-12
-          - c_compiler: clang-14
-            cxx_compiler: clang++-14
-          - c_compiler: clang-15
-            cxx_compiler: clang++-15
+          - compiler_family: gcc
+            compiler_version: 11
+          - compiler_family: gcc
+            compiler_version: 12
+          - compiler_family: llvm
+            compiler_version: 14
+          - compiler_family: llvm
+            compiler_version: 15
     runs-on: ubuntu-latest
     steps:
       - name: Check out this repository
         uses: actions/checkout@v3.3.0
 
       - name: Install compilers
+        env:
+          FAMILY: ${{ compiler_family }}
         run: |
           sudo apt update
           sudo apt install -y build-essential
-          sudo apt install -y ${{matrix.c_compiler}}
-          if [[ ${{matrix.cxx_compiler}} == gcc* ]] ; then 
-            sudo apt install -y ${{matrix.cxx_compiler}}
+          if [[ "${FAMILY}" == gcc ]]; then
+              sudo apt install gcc-${VERSION} g++-${VERSION}
+              echo "CC=gcc-${VERSION}" >> "$GITHUB_ENV"
+              echo "CXX=g++-${VERSION}" >> "$GITHUB_ENV"
+          elif [[ "${FAMILY}" == llvm ]]; then
+              wget https://apt.llvm.org/llvm.sh
+              chmod +x llvm.sh
+              sudo ./llvm.sh ${VERSION} all
+              echo "CC=clang-${VERSION}" >> "$GITHUB_ENV"
+              echo "CXX=clang++-${VERSION}" >> "$GITHUB_ENV"
+          else
+              echo "[ERROR]: compiler family name not supported"
+              exit -1
           fi
 
       # - name: Get GraphBLAS
       #   run: bash ./.github/workflows/get_graphblas.sh
 
       - name: Configure
-        run: cmake -B build -DMTXIO_TEST=ON -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cxx_compiler}}
+        run: cmake -B build -DMTXIO_TEST=ON -DCMAKE_C_COMPILER=${{env.CC}} -DCMAKE_CXX_COMPILER=${{env.CXX}}
 
       - name: Build
         run: cmake --build build --parallel
