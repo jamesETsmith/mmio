@@ -14,6 +14,11 @@ add_library(mmio src/mmio.c)
 set_property(TARGET mmio PROPERTY C_STANDARD 11)
 target_include_directories(mmio PRIVATE include)
 
+add_library(mtx_io src/mtx_io.c)
+set_property(TARGET mtx_io PROPERTY C_STANDARD 11)
+target_include_directories(mtx_io PRIVATE include)
+target_link_libraries(mtx_io OpenMP::OpenMP_C)
+
 
 # Get and install fast_matrix_market
 include(FetchContent)

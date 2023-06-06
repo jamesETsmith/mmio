@@ -8,9 +8,10 @@ add_executable(io io.cpp)
 target_link_libraries(io OpenMP::OpenMP_CXX)
 # target_compile_options(io PRIVATE -fanalyzer)
 
-add_executable(io_c io_c.c)
-target_link_libraries(io_c OpenMP::OpenMP_C)
-target_compile_options(io_c PRIVATE -fanalyzer)
+add_executable(mtx_io_read mtx_io_read.c)
+target_include_directories(mtx_io_read PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(mtx_io_read mtx_io OpenMP::OpenMP_C)
+target_compile_options(mtx_io_read PRIVATE)
 
 # External benchmarks
 add_executable(lagr_mmio_read lagr_mmio_read.c)

@@ -1,28 +1,4 @@
-#include <fcntl.h>
-#include <omp.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <unistd.h>
-
-//   FILE* fp = fopen(filename, "rb");
-//   if (fp == NULL) {
-//     fprintf(stderr, "Opening %s failed\n");
-//     exit(-1);
-//   }
-
-//   int seek_rv = fseek(fp, 0L, SEEK_END);
-//   if (seek_rv != 0) {
-//     fprintf(stderr, "Seeking end of file failed\n");
-//     exit(-1);
-//   }
-
-//   size_t buff_size = ftell(fp);
-//   if (buff_size = (size_t)(-1)) {
-//     fprintf(stderr, "Invalid size\n");
-//   }
+#include "mtx_io.h"
 
 size_t find_endline(char* data, size_t data_size, size_t start) {
   size_t end = start;
@@ -76,17 +52,8 @@ inline int find_chunk_boundaries(char* data, size_t buff_size, size_t* start,
   return 0;
 }
 
-int main(int argc, char** argv) {
-  time_t t_setup = clock();
-
-  if (argc != 2) {
-    fprintf(stderr, "Wrong command line args. Use './io matrix.mtx'");
-    exit(1);
-  }
-
-  const char* filename = argv[1];
-  printf("Parsing %s\n", filename);
-
+int mtx_read_parallel(const char* filename, size_t* e_i, size_t* e_o,
+                      double* e_w) {
   struct stat file_stats;
   int fd = 0;
   fd = open(filename, O_RDONLY);
@@ -116,7 +83,7 @@ int main(int argc, char** argv) {
     i++;
   }
 
-  print_time(t_setup, "setup");
+  // print_time(t_setup, "setup");
 
   //
   // Meta info
@@ -136,7 +103,7 @@ int main(int argc, char** argv) {
   //
   // Find new lines
   //
-  time_t t_newlines = clock();
+  // time_t t_newlines = clock();
 
   /*
   size_t chunk_start[nthreads]
@@ -177,69 +144,71 @@ int main(int argc, char** argv) {
   }
   chunk_end[omp_get_max_threads() - 1] = buff_size;
 
+  // Setup final data structures
+  e_i = (size_t*)malloc(nnz * sizeof(size_t));
+  e_o = (size_t*)malloc(nnz * sizeof(size_t));
+  e_w = (double*)malloc(nnz * sizeof(double));
+
+//
+// Parse data
+//
 #pragma omp parallel
   {
     size_t t_id = omp_get_thread_num();
     find_chunk_boundaries(data, buff_size, &chunk_start[t_id], &chunk_end[t_id],
                           &chunk_n_newlines[t_id]);
     printf("[THREAD %lu]: found %lu new lines\n", t_id, chunk_n_newlines[t_id]);
-  }
 
-  size_t check_nnz = 0;
-  for (int i = 0; i < omp_get_max_threads(); i++) {
-    check_nnz += chunk_n_newlines[i];
-  }
-  printf("[CHECK]: check_nnz = %lu    real nnz = %lu\n", check_nnz, nnz);
+#pragma omp barrier
 
-  chunk_offsets[0] = 0;
-  for (int i = 1; i < omp_get_max_threads(); i++) {
-    chunk_offsets[i] = chunk_n_newlines[i - 1] + chunk_offsets[i - 1];
-    printf("Offset for thread %d = %lu\n", i, chunk_offsets[i]);
-  }
+#pragma omp master
+    {
+      size_t check_nnz = 0;
+      for (int i = 0; i < omp_get_max_threads(); i++) {
+        check_nnz += chunk_n_newlines[i];
+      }
+      printf("[CHECK]: check_nnz = %lu    real nnz = %lu\n", check_nnz, nnz);
+      assert(check_nnz == nnz);
 
-  // size_t* line_start;
-  // size_t* line_end;
-  // line_start = (size_t*)malloc(nnz * sizeof(size_t));
-  // line_end = (size_t*)malloc(nnz * sizeof(size_t));
+      chunk_offsets[0] = 0;
+      for (int i = 1; i < omp_get_max_threads(); i++) {
+        chunk_offsets[i] = chunk_n_newlines[i - 1] + chunk_offsets[i - 1];
+        printf("Offset for thread %d = %lu\n", i, chunk_offsets[i]);
+      }
+    }
 
-  // for (int i = 0; i < nnz; i++) {
-  //   start = end + 1;
-  //   end = find_endline(data, buff_size, start);
+    // print_time(t_newlines, "newlines");
+    // time_t t_parse = clock();
 
-  //   line_start[i] = start;
-  //   line_end[i] = end;
-  // }
-
-  // line_end[nnz - 1] = buff_size;
-  print_time(t_newlines, "newlines");
-
-  //
-  // Parse data
-  //
-  time_t t_parse = clock();
-  size_t* e_i = (size_t*)malloc(nnz * sizeof(size_t));
-  size_t* e_o = (size_t*)malloc(nnz * sizeof(size_t));
-  double* e_w = (double*)malloc(nnz * sizeof(double));
-
-#pragma omp parallel
-  {
-    int t_id = omp_get_thread_num();
-
-    size_t t_start = chunk_start[t_id];
-    size_t t_end = find_endline(data, buff_size, t_start);
     size_t t_newlines = chunk_n_newlines[t_id];
     size_t t_offset = chunk_offsets[t_id];
 
+    size_t chunk_size = chunk_end[t_id] - chunk_start[t_id];
+    char* local_data = (char*)malloc(chunk_size * sizeof(char*));
+    char* memcpy_res =
+        (char*)memcpy(local_data, &data[chunk_start[t_id]], chunk_size);
+    if (memcpy_res != local_data) {
+      fprintf(stderr, "Problem with allocating local data to parse\n");
+      exit(-1);
+    }
+
+    size_t t_start = 0;
+    size_t t_end = find_endline(local_data, chunk_size, t_start);
+
+#pragma omp for
     for (size_t i = 0; i < t_newlines; i++) {
       char* line_end;
-      e_i[t_offset + i] = strtoul(&data[t_start], &line_end, 10);
+      e_i[t_offset + i] = strtoul(&local_data[t_start], &line_end, 10);
       e_o[t_offset + i] = strtoul(line_end, &line_end, 10);
       e_w[t_offset + i] = strtod(line_end, &line_end);
 
       t_start = t_end + 1;
-      t_end = find_endline(data, buff_size, t_start);
+      t_end = find_endline(local_data, chunk_size, t_start);
     }
-  }
+
+    free(local_data);
+
+  }  // End of omp parallel region
 
   // #pragma omp parallel for schedule(static, 64)
   //   for (size_t i = 0; i < nnz; i++) {
@@ -251,7 +220,7 @@ int main(int argc, char** argv) {
   //       e_w[i] = strtod(end, &end);
   //   }
 
-  print_time(t_parse, "parse");
+  // print_time(t_parse, "parse");
 
   printf("First line: i = %lu  j = %lu  val = %lf\n", e_i[0], e_o[0], e_w[0]);
   printf("Last line:  i = %lu  j = %lu  val = %lf\n", e_i[nnz - 1],
