@@ -8,6 +8,8 @@ jobs:
       matrix:
         include:
           - compiler_family: gcc
+            compiler_version: 10
+          - compiler_family: gcc
             compiler_version: 11
           - compiler_family: gcc
             compiler_version: 12
@@ -15,8 +17,6 @@ jobs:
             compiler_version: 13
           - compiler_family: llvm
             compiler_version: 14
-          - compiler_family: llvm
-            compiler_version: 15
 
     runs-on: ubuntu-latest
     steps:
@@ -36,9 +36,6 @@ jobs:
               echo "CC=gcc-${VERSION}" >> "$GITHUB_ENV"
               echo "CXX=g++-${VERSION}" >> "$GITHUB_ENV"
           elif [[ "${FAMILY}" == llvm ]]; then
-              if [[ "${VERSION}" == 15 ]]; then
-                sudo apt-get dist-upgrade
-              fi
               wget https://apt.llvm.org/llvm.sh
               chmod +x llvm.sh
               sudo ./llvm.sh ${VERSION} all
