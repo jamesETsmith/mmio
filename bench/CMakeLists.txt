@@ -12,27 +12,23 @@ target_include_directories(mtxio_read PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(mtxio_read mtxio OpenMP::OpenMP_C)
 target_compile_options(mtxio_read PRIVATE)
 
-# External benchmarks
-add_executable(lagr_mmio_read lagr_mmio_read.c)
-target_include_directories(
-  lagr_mmio_read
-  PRIVATE ${CMAKE_SOURCE_DIR}/include
-          /home/james/apps/GraphBLAS/build/install/include/
-          /home/james/apps/LAGraph/build/install/include/)
-target_link_libraries(
-  lagr_mmio_read
-  PUBLIC /home/james/apps/LAGraph/build/install/lib/liblagraph.a
-         /home/james/apps/GraphBLAS/build/install/lib/libgraphblas.a m
-         OpenMP::OpenMP_C)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+find_package(GraphBLAS)
+
+# External benchmarks add_executable(lagr_mmio_read lagr_mmio_read.c)
+# target_include_directories( lagr_mmio_read PRIVATE ${CMAKE_SOURCE_DIR}/include
+# /home/james/apps/GraphBLAS/build/install/include/
+# /home/james/apps/LAGraph/build/install/include/) target_link_libraries(
+# lagr_mmio_read PUBLIC /home/james/apps/LAGraph/build/install/lib/liblagraph.a
+# /home/james/apps/GraphBLAS/build/install/lib/libgraphblas.a m
+# OpenMP::OpenMP_C)
 
 add_executable(fmm_read fmm_read.cpp)
 target_include_directories(
   fmm_read PRIVATE ${CMAKE_SOURCE_DIR}/include
                    /home/james/apps/GraphBLAS/build/install/include/)
-target_link_libraries(
-  fmm_read fast_matrix_market::fast_matrix_market
-  /home/james/apps/GraphBLAS/build/install/lib/libgraphblas.a m
-  OpenMP::OpenMP_CXX)
+target_link_libraries(fmm_read fast_matrix_market::fast_matrix_market
+                      OpenMP::OpenMP_CXX)
 
 add_executable(pigo_read pigo_read.cpp)
 target_include_directories(pigo_read PRIVATE ${pigo_SOURCE_DIR}/release)
