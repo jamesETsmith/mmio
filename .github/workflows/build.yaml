@@ -2,11 +2,17 @@ name: build
 on:
   push:
 jobs:
-  build-project:
+  build-matrix:
+    strategy:
+      matrix:
+        version: [11, 12]
     runs-on: ubuntu-latest
     steps:
       - name: Check out this repository
         uses: actions/checkout@v3.3.0
+
+      - name: Install compilers
+        run: sudo apt update; sudo apt install -y build-essential; sudo apt install -y gcc-${{matrix.version}} g++-${{matrix.version}}
 
       # - name: Get GraphBLAS
       #   run: bash ./.github/workflows/get_graphblas.sh
