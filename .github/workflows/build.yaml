@@ -8,8 +8,6 @@ jobs:
       matrix:
         include:
           - compiler_family: gcc
-            compiler_version: 10
-          - compiler_family: gcc
             compiler_version: 11
           - compiler_family: gcc
             compiler_version: 12
