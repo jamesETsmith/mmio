@@ -4,6 +4,7 @@ on:
 jobs:
   build-matrix:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - c_compiler: gcc-11
@@ -23,7 +24,10 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y build-essential
-          sudo apt install -y ${{matrix.c_compiler}} ${{matrix.cxx_compiler}}
+          sudo apt install -y ${{matrix.c_compiler}}
+          if [[ ${{matrix.cxx_compiler}} == gcc* ]] ; then 
+            sudo apt install -y ${{matrix.cxx_compiler}}
+          fi
 
       # - name: Get GraphBLAS
       #   run: bash ./.github/workflows/get_graphblas.sh
