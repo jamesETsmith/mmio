@@ -28,7 +28,7 @@ jobs:
           FAMILY: ${{ matrix.compiler_family }}
           VERSION: ${{ matrix.compiler_version }}
         run: |
-          sudo add-apt-repository deb http://mirrors.mit.edu/ubuntu/ jammy-updates
+          sudo add-apt-repository deb http://archive.ubuntu.com/ubuntu/ jammy-updates main restricted universe multiverse
           sudo apt-get update
           sudo apt-get install -y build-essential
           if [[ "${FAMILY}" == gcc ]]; then
