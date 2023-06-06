@@ -12,9 +12,12 @@ jobs:
           - compiler_family: gcc
             compiler_version: 12
           - compiler_family: llvm
+            compiler_version: 13
+          - compiler_family: llvm
             compiler_version: 14
           - compiler_family: llvm
             compiler_version: 15
+
     runs-on: ubuntu-latest
     steps:
       - name: Check out this repository
@@ -25,8 +28,9 @@ jobs:
           FAMILY: ${{ matrix.compiler_family }}
           VERSION: ${{ matrix.compiler_version }}
         run: |
-          sudo apt update
-          sudo apt install -y build-essential
+          sudo add-apt-repository deb http://mirrors.mit.edu/ubuntu/ jammy-updates
+          sudo apt-get update
+          sudo apt-get install -y build-essential
           if [[ "${FAMILY}" == gcc ]]; then
               sudo apt install gcc-${VERSION} g++-${VERSION}
               echo "CC=gcc-${VERSION}" >> "$GITHUB_ENV"
