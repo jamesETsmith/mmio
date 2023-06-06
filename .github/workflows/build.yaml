@@ -5,20 +5,31 @@ jobs:
   build-matrix:
     strategy:
       matrix:
-        version: [11, 12]
+        include:
+          - c_compiler: gcc-11
+            cxx_compiler: g++-11
+          - c_compiler: gcc-12
+            cxx_compiler: gxx-12
+          - c_compiler: clang-14
+            cxx_compiler: clang++-14
+          - c_compiler: clang-15
+            cxx_compiler: clang++-15
     runs-on: ubuntu-latest
     steps:
       - name: Check out this repository
         uses: actions/checkout@v3.3.0
 
       - name: Install compilers
-        run: sudo apt update; sudo apt install -y build-essential; sudo apt install -y gcc-${{matrix.version}} g++-${{matrix.version}}
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential
+          sudo apt install -y ${{matrix.c_compiler}} ${{matrix.cxx_compiler}}
 
       # - name: Get GraphBLAS
       #   run: bash ./.github/workflows/get_graphblas.sh
 
       - name: Configure
-        run: cmake -B build -DMTXIO_TEST=ON
+        run: cmake -B build -DMTXIO_TEST=ON -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cxx_compiler}}
 
       - name: Build
         run: cmake --build build --parallel
