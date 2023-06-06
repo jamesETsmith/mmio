@@ -7,9 +7,15 @@ jobs:
     steps:
       - name: Check out this repository
         uses: actions/checkout@v3.3.0
+
+      - name: Get GraphBLAS
+        run: bash ./.github/workflows/get_graphblas.sh
+
       - name: Configure
         run: cmake -B build -DMTXIO_TEST=ON
+
       - name: Build
         run: cmake --build build --parallel
+
       - name: Test
         run: ctest --test-dir build
