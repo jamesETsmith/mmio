@@ -11,7 +11,8 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Usage: %s [martix-market-filename]\n", argv[0]);
     exit(1);
   } else {
-    if ((f = fopen(argv[1], "r")) == NULL) exit(1);
+    if ((f = fopen(argv[1], "r")) == NULL)
+      exit(1);
   }
 
   LAGraph_MMRead(&A, f, msg);

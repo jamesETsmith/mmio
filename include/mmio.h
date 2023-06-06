@@ -69,7 +69,7 @@ int mm_is_valid(MM_typecode matcode); /* too complex for a macro */
 #define mm_set_skew(typecode) ((*typecode)[3] = 'K')
 #define mm_set_hermitian(typecode) ((*typecode)[3] = 'H')
 
-#define mm_clear_typecode(typecode) \
+#define mm_clear_typecode(typecode)                                            \
   ((*typecode)[0] = (*typecode)[1] = (*typecode)[2] = ' ', (*typecode)[3] = 'G')
 
 #define mm_initialize_typecode(typecode) mm_clear_typecode(typecode)

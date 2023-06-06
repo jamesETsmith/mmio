@@ -39,7 +39,8 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Usage: %s [martix-market-filename]\n", argv[0]);
     exit(1);
   } else {
-    if ((f = fopen(argv[1], "r")) == NULL) exit(1);
+    if ((f = fopen(argv[1], "r")) == NULL)
+      exit(1);
   }
 
   if (mm_read_banner(f, &matcode) != 0) {
@@ -59,7 +60,8 @@ int main(int argc, char *argv[]) {
 
   /* find out size of sparse matrix .... */
 
-  if ((ret_code = mm_read_mtx_crd_size(f, &M, &N, &nz)) != 0) exit(1);
+  if ((ret_code = mm_read_mtx_crd_size(f, &M, &N, &nz)) != 0)
+    exit(1);
 
   /* reseve memory for matrices */
 
@@ -77,7 +79,8 @@ int main(int argc, char *argv[]) {
     J[i]--;
   }
 
-  if (f != stdin) fclose(f);
+  if (f != stdin)
+    fclose(f);
 
   /************************/
   /* now write out matrix */

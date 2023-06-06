@@ -1,6 +1,6 @@
-#include "mtx_io.h"
+#include "mtxio.h"
 
-size_t find_endline(char* data, size_t data_size, size_t start) {
+size_t find_endline(char *data, size_t data_size, size_t start) {
   size_t end = start;
   while (start < data_size) {
     if (data[end] != '\n') {
@@ -12,13 +12,13 @@ size_t find_endline(char* data, size_t data_size, size_t start) {
   return end;
 }
 
-void print_time(time_t t_start, const char* msg) {
+void print_time(time_t t_start, const char *msg) {
   double t_total = ((double)(clock() - t_start)) / CLOCKS_PER_SEC;
   printf("Time for %16s: %.6lf (s)\n", msg, t_total);
 }
 
-inline int find_chunk_boundaries(char* data, size_t buff_size, size_t* start,
-                                 size_t* end, size_t* n_newlines) {
+inline int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
+                                 size_t *end, size_t *n_newlines) {
   // Find the new start
   if (omp_get_thread_num() != 0) {
     size_t curr = *start;
@@ -52,8 +52,8 @@ inline int find_chunk_boundaries(char* data, size_t buff_size, size_t* start,
   return 0;
 }
 
-int mtx_read_parallel(const char* filename, size_t* e_i, size_t* e_o,
-                      double* e_w) {
+int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
+                      size_t *e_i, size_t *e_o, double *e_w) {
   struct stat file_stats;
   int fd = 0;
   fd = open(filename, O_RDONLY);
@@ -65,9 +65,9 @@ int mtx_read_parallel(const char* filename, size_t* e_i, size_t* e_o,
 
   size_t buff_size = file_stats.st_size;
   printf("Size of file: %lu bytes\n", buff_size);
-  char* data;
-  data =
-      (char*)mmap(NULL, buff_size * sizeof(char), PROT_READ, MAP_SHARED, fd, 0);
+  char *data;
+  data = (char *)mmap(NULL, buff_size * sizeof(char), PROT_READ, MAP_SHARED, fd,
+                      0);
 
   size_t start = 0;
   size_t end = find_endline(data, buff_size, start);
@@ -90,15 +90,22 @@ int mtx_read_parallel(const char* filename, size_t* e_i, size_t* e_o,
   //
   time_t t_meta = clock();
 
-  size_t m = 0, n = 0, nnz = 0;
+  *m = 0, *n = 0, *nnz = 0;
 
   fwrite(&data[start], 1, end - start, stdout);
   printf("\n");
 
-  int items_read = sscanf(&data[start], "%lu %lu %lu\n", &m, &n, &nnz);
+  int items_read = sscanf(&data[start], "%lu %lu %lu\n", m, n, nnz);
   printf("items read: %d\n", items_read);
-  printf("m: %lu n: %lu nnz: %lu\n", m, n, nnz);
+  printf("m: %lu n: %lu nnz: %lu\n", *m, *n, *nnz);
   print_time(t_meta, "meta");
+
+  if (*nnz < omp_get_max_threads()) {
+    omp_set_num_threads(*nnz);
+    fprintf(stderr,
+            "[WARNING]: Number of threads greater than number of non-zero "
+            "elements, reducing the number of threads.\n");
+  }
 
   //
   // Find new lines
@@ -121,12 +128,13 @@ int mtx_read_parallel(const char* filename, size_t* e_i, size_t* e_o,
   bool find_chunk_boundaries(data, buff_size, start, end, n_newlines)
   */
   size_t chunk_size = (buff_size - (end + 1)) / omp_get_max_threads();
-  size_t* chunk_start = (size_t*)malloc(omp_get_max_threads() * sizeof(size_t));
-  size_t* chunk_end = (size_t*)malloc(omp_get_max_threads() * sizeof(size_t));
-  size_t* chunk_n_newlines =
-      (size_t*)malloc(omp_get_max_threads() * sizeof(size_t));
-  size_t* chunk_offsets =
-      (size_t*)malloc(omp_get_max_threads() * sizeof(size_t));
+  size_t *chunk_start =
+      (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
+  size_t *chunk_end = (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
+  size_t *chunk_n_newlines =
+      (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
+  size_t *chunk_offsets =
+      (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
 
   if (chunk_start == NULL || chunk_end == NULL || chunk_n_newlines == NULL ||
       chunk_offsets == NULL) {
@@ -145,9 +153,9 @@ int mtx_read_parallel(const char* filename, size_t* e_i, size_t* e_o,
   chunk_end[omp_get_max_threads() - 1] = buff_size;
 
   // Setup final data structures
-  e_i = (size_t*)malloc(nnz * sizeof(size_t));
-  e_o = (size_t*)malloc(nnz * sizeof(size_t));
-  e_w = (double*)malloc(nnz * sizeof(double));
+  e_i = (size_t *)malloc(*nnz * sizeof(size_t));
+  e_o = (size_t *)malloc(*nnz * sizeof(size_t));
+  e_w = (double *)malloc(*nnz * sizeof(double));
 
 //
 // Parse data
@@ -167,8 +175,8 @@ int mtx_read_parallel(const char* filename, size_t* e_i, size_t* e_o,
       for (int i = 0; i < omp_get_max_threads(); i++) {
         check_nnz += chunk_n_newlines[i];
       }
-      printf("[CHECK]: check_nnz = %lu    real nnz = %lu\n", check_nnz, nnz);
-      assert(check_nnz == nnz);
+      printf("[CHECK]: check_nnz = %lu    real nnz = %lu\n", check_nnz, *nnz);
+      assert(check_nnz == *nnz);
 
       chunk_offsets[0] = 0;
       for (int i = 1; i < omp_get_max_threads(); i++) {
@@ -184,9 +192,9 @@ int mtx_read_parallel(const char* filename, size_t* e_i, size_t* e_o,
     size_t t_offset = chunk_offsets[t_id];
 
     size_t chunk_size = chunk_end[t_id] - chunk_start[t_id];
-    char* local_data = (char*)malloc(chunk_size * sizeof(char*));
-    char* memcpy_res =
-        (char*)memcpy(local_data, &data[chunk_start[t_id]], chunk_size);
+    char *local_data = (char *)malloc(chunk_size * sizeof(char *));
+    char *memcpy_res =
+        (char *)memcpy(local_data, &data[chunk_start[t_id]], chunk_size);
     if (memcpy_res != local_data) {
       fprintf(stderr, "Problem with allocating local data to parse\n");
       exit(-1);
@@ -197,7 +205,7 @@ int mtx_read_parallel(const char* filename, size_t* e_i, size_t* e_o,
 
 #pragma omp for
     for (size_t i = 0; i < t_newlines; i++) {
-      char* line_end;
+      char *line_end;
       e_i[t_offset + i] = strtoul(&local_data[t_start], &line_end, 10);
       e_o[t_offset + i] = strtoul(line_end, &line_end, 10);
       e_w[t_offset + i] = strtod(line_end, &line_end);
@@ -208,7 +216,7 @@ int mtx_read_parallel(const char* filename, size_t* e_i, size_t* e_o,
 
     free(local_data);
 
-  }  // End of omp parallel region
+  } // End of omp parallel region
 
   // #pragma omp parallel for schedule(static, 64)
   //   for (size_t i = 0; i < nnz; i++) {
@@ -223,8 +231,8 @@ int mtx_read_parallel(const char* filename, size_t* e_i, size_t* e_o,
   // print_time(t_parse, "parse");
 
   printf("First line: i = %lu  j = %lu  val = %lf\n", e_i[0], e_o[0], e_w[0]);
-  printf("Last line:  i = %lu  j = %lu  val = %lf\n", e_i[nnz - 1],
-         e_o[nnz - 1], e_w[nnz - 1]);
+  printf("Last line:  i = %lu  j = %lu  val = %lf\n", e_i[*nnz - 1],
+         e_o[*nnz - 1], e_w[*nnz - 1]);
 
   //
   // Cleanup

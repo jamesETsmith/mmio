@@ -2,7 +2,7 @@ a.out
 *.a
 *.so
 build
-data/*.mtx
+data/n_*.mtx
 gmon.out
 perf.data
 analysis.txt

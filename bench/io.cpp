@@ -37,11 +37,11 @@ inline std::vector<std::string_view> split(std::string_view sv,
 }
 
 template <typename T>
-inline void from_chars_range(std::string_view sv, T& result) {
+inline void from_chars_range(std::string_view sv, T &result) {
   std::from_chars(sv.data(), sv.data() + sv.size(), result);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   if (argc != 2) {
     std::cerr << "Wrong command line args. Use './io matrix.mtx'" << std::endl;
     exit(1);
@@ -50,7 +50,8 @@ int main(int argc, char** argv) {
   std::cout << "Parsing " << filename << std::endl;
 
   std::ifstream fin(filename, std::ios::binary);
-  if (!fin) return 0;
+  if (!fin)
+    return 0;
 
   fin.seekg(0, std::ios::end);
   size_t filesize = (size_t)fin.tellg();
