@@ -15,6 +15,6 @@ int main(int argc, char **argv) {
   size_t *e_o = NULL;
   double *e_w = NULL;
   size_t m, n, nnz;
-  mtx_read_parallel(filename, &m, &n, &nnz, e_i, e_o, e_w);
+  mtx_read_parallel(filename, &m, &n, &nnz, &e_i, &e_o, &e_w);
   return 0;
 }

@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "mmio.h"
+
 void get_data_path(char const *filename, char *data_path) {
 #define BUFSIZE 1024
   char *envvar = "MTXIO_DATA_DIR";

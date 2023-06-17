@@ -1,8 +1,56 @@
 #include "mtxio.h"
 
+#include <math.h>
+#include <stdbool.h>
+
+double read_double(char *d, char *end) {
+  double res = 0.0;
+  while (d < end && !((*d >= '0' && *d <= '9') || *d == 'e' || *d == 'E' ||
+                      *d == '-' || *d == '+' || *d == '.')) {
+    ++d;
+  }
+  // Read the size
+  bool positive = true;
+  if (*d == '-') {
+    positive = false;
+    ++d;
+  } else if (*d == '+')
+    ++d;
+
+  // Support a simple form of floating point integers
+  // Note: this is not the most accurate or fastest strategy
+  // (+-)AAA.BBB(eE)(+-)ZZ.YY
+  // Read the 'A' part
+  while (d < end && (*d >= '0' && *d <= '9')) {
+    res = res * 10. + (double)(*d - '0');
+    ++d;
+  }
+  if (*d == '.') {
+    ++d;
+    double fraction = 0.;
+    size_t fraction_count = 0;
+    // Read the 'B' part
+    while (d < end && (*d >= '0' && *d <= '9')) {
+      fraction = fraction * 10. + (double)(*d - '0');
+      ++d;
+      ++fraction_count;
+    }
+    res += fraction / pow(10., fraction_count);
+  }
+  if (*d == 'e' || *d == 'E') {
+    ++d;
+    double exp = read_double(d, end);
+    res *= pow(10., exp);
+  }
+
+  if (!positive)
+    res *= -1;
+  return res;
+}
+
 size_t find_endline(char *data, size_t data_size, size_t start) {
   size_t end = start;
-  while (start < data_size) {
+  while (end < data_size) {
     if (data[end] != '\n') {
       end++;
     } else {
@@ -14,7 +62,7 @@ size_t find_endline(char *data, size_t data_size, size_t start) {
 
 void print_time(time_t t_start, const char *msg) {
   double t_total = ((double)(clock() - t_start)) / CLOCKS_PER_SEC;
-  printf("Time for %16s: %.6lf (s)\n", msg, t_total);
+  MTXIO_LOG("Time for %16s: %.6lf (s)\n", msg, t_total);
 }
 
 inline int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
@@ -49,11 +97,23 @@ inline int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
     *n_newlines += (data[i] == '\n');
   }
 
+  // TODO this feels like sloppy way to handle the final lines that
+  // don't terminate with a newline
+  printf("Number of threads (%d) in %s\n", omp_get_num_threads(), __FUNCTION__);
+  if (omp_get_thread_num() == (omp_get_num_threads() - 1)) {
+    printf("I'm in the hack\n");
+    if (data[*end - 1] != '\n') {
+      printf("I'm adding one to n_newlines in the hack\n");
+
+      *n_newlines += 1;
+    }
+  }
+
   return 0;
 }
 
 int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
-                      size_t *e_i, size_t *e_o, double *e_w) {
+                      size_t **e_i_p, size_t **e_o_p, double **e_w_p) {
   struct stat file_stats;
   int fd = 0;
   fd = open(filename, O_RDONLY);
@@ -64,7 +124,7 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
   }
 
   size_t buff_size = file_stats.st_size;
-  printf("Size of file: %lu bytes\n", buff_size);
+  MTXIO_LOG("Size of file: %lu bytes\n", buff_size);
   char *data;
   data = (char *)mmap(NULL, buff_size * sizeof(char), PROT_READ, MAP_SHARED, fd,
                       0);
@@ -74,9 +134,10 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
 
   int i = 0;
   while (data[start] == '%' && i < 5) {
+#ifndef NDEBUG
     fwrite(&data[start], 1, end - start, stdout);
     printf("\n");
-
+#endif
     start = end + 1;
     end = find_endline(data, buff_size, start);
 
@@ -96,12 +157,13 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
   printf("\n");
 
   int items_read = sscanf(&data[start], "%lu %lu %lu\n", m, n, nnz);
-  printf("items read: %d\n", items_read);
-  printf("m: %lu n: %lu nnz: %lu\n", *m, *n, *nnz);
+  MTXIO_LOG("items read: %d\n", items_read);
+  MTXIO_LOG("m: %lu n: %lu nnz: %lu\n", *m, *n, *nnz);
   print_time(t_meta, "meta");
 
   if (*nnz < omp_get_max_threads()) {
-    omp_set_num_threads(*nnz);
+    // int new_threads = *nnz / 2;
+    omp_set_num_threads(1);
     fprintf(stderr,
             "[WARNING]: Number of threads greater than number of non-zero "
             "elements, reducing the number of threads.\n");
@@ -147,16 +209,18 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
     chunk_end[i] = (end + 1) + (i + 1) * chunk_size;
     chunk_n_newlines[i] = 0;
 
-    printf("t = %d    start = %lu   end = %lu\n", i, chunk_start[i],
-           chunk_end[i]);
+    MTXIO_LOG("t = %d    start = %lu   end = %lu\n", i, chunk_start[i],
+              chunk_end[i]);
   }
   chunk_end[omp_get_max_threads() - 1] = buff_size;
 
   // Setup final data structures
-  e_i = (size_t *)malloc(*nnz * sizeof(size_t));
-  e_o = (size_t *)malloc(*nnz * sizeof(size_t));
-  e_w = (double *)malloc(*nnz * sizeof(double));
-
+  *e_i_p = (size_t *)malloc(*nnz * sizeof(size_t));
+  *e_o_p = (size_t *)malloc(*nnz * sizeof(size_t));
+  *e_w_p = (double *)malloc(*nnz * sizeof(double));
+  size_t *e_i = *e_i_p;
+  size_t *e_o = *e_o_p;
+  double *e_w = *e_w_p;
 //
 // Parse data
 //
@@ -165,7 +229,8 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
     size_t t_id = omp_get_thread_num();
     find_chunk_boundaries(data, buff_size, &chunk_start[t_id], &chunk_end[t_id],
                           &chunk_n_newlines[t_id]);
-    printf("[THREAD %lu]: found %lu new lines\n", t_id, chunk_n_newlines[t_id]);
+    MTXIO_LOG("[THREAD %lu]: found %lu new lines\n", t_id,
+              chunk_n_newlines[t_id]);
 
 #pragma omp barrier
 
@@ -175,13 +240,14 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
       for (int i = 0; i < omp_get_max_threads(); i++) {
         check_nnz += chunk_n_newlines[i];
       }
-      printf("[CHECK]: check_nnz = %lu    real nnz = %lu\n", check_nnz, *nnz);
+      MTXIO_LOG("[CHECK]: check_nnz = %lu    real nnz = %lu\n", check_nnz,
+                *nnz);
       assert(check_nnz == *nnz);
 
       chunk_offsets[0] = 0;
       for (int i = 1; i < omp_get_max_threads(); i++) {
         chunk_offsets[i] = chunk_n_newlines[i - 1] + chunk_offsets[i - 1];
-        printf("Offset for thread %d = %lu\n", i, chunk_offsets[i]);
+        MTXIO_LOG("Offset for thread %d = %lu\n", i, chunk_offsets[i]);
       }
     }
 
@@ -237,9 +303,9 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
   //
   // Cleanup
   //
-  free(e_i);
-  free(e_o);
-  free(e_w);
+  // free(e_i);
+  // free(e_o);
+  // free(e_w);
   // free(new_lines);
   // free(line_start);
   // free(line_end);

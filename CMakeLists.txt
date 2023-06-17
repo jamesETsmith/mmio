@@ -19,7 +19,7 @@ target_include_directories(mmio PUBLIC include)
 add_library(mtxio src/mtxio.c)
 set_property(TARGET mtxio PROPERTY C_STANDARD 11)
 target_include_directories(mtxio PUBLIC include)
-target_link_libraries(mtxio OpenMP::OpenMP_C)
+target_link_libraries(mtxio OpenMP::OpenMP_C m)
 
 # Get and install fast_matrix_market
 include(FetchContent)
@@ -38,8 +38,8 @@ FetchContent_MakeAvailable(fast_matrix_market PIGO)
 
 add_subdirectory(bench)
 
-option(MTXIO_TEST "Build tests for MTXIO")
-if(${MTXIO_TEST})
+option(BUILD_TESTING "Build tests for MTXIO" ON)
+if(${BUILD_TESTING})
   enable_testing()
 
   include(FetchContent)
