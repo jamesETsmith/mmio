@@ -3,50 +3,50 @@
 #include <math.h>
 #include <stdbool.h>
 
-double read_double(char *d, char *end) {
-  double res = 0.0;
-  while (d < end && !((*d >= '0' && *d <= '9') || *d == 'e' || *d == 'E' ||
-                      *d == '-' || *d == '+' || *d == '.')) {
-    ++d;
-  }
-  // Read the size
-  bool positive = true;
-  if (*d == '-') {
-    positive = false;
-    ++d;
-  } else if (*d == '+')
-    ++d;
+// double read_double(char *d, char *end) {
+//   double res = 0.0;
+//   while (d < end && !((*d >= '0' && *d <= '9') || *d == 'e' || *d == 'E' ||
+//                       *d == '-' || *d == '+' || *d == '.')) {
+//     ++d;
+//   }
+//   // Read the size
+//   bool positive = true;
+//   if (*d == '-') {
+//     positive = false;
+//     ++d;
+//   } else if (*d == '+')
+//     ++d;
 
-  // Support a simple form of floating point integers
-  // Note: this is not the most accurate or fastest strategy
-  // (+-)AAA.BBB(eE)(+-)ZZ.YY
-  // Read the 'A' part
-  while (d < end && (*d >= '0' && *d <= '9')) {
-    res = res * 10. + (double)(*d - '0');
-    ++d;
-  }
-  if (*d == '.') {
-    ++d;
-    double fraction = 0.;
-    size_t fraction_count = 0;
-    // Read the 'B' part
-    while (d < end && (*d >= '0' && *d <= '9')) {
-      fraction = fraction * 10. + (double)(*d - '0');
-      ++d;
-      ++fraction_count;
-    }
-    res += fraction / pow(10., fraction_count);
-  }
-  if (*d == 'e' || *d == 'E') {
-    ++d;
-    double exp = read_double(d, end);
-    res *= pow(10., exp);
-  }
+//   // Support a simple form of floating point integers
+//   // Note: this is not the most accurate or fastest strategy
+//   // (+-)AAA.BBB(eE)(+-)ZZ.YY
+//   // Read the 'A' part
+//   while (d < end && (*d >= '0' && *d <= '9')) {
+//     res = res * 10. + (double)(*d - '0');
+//     ++d;
+//   }
+//   if (*d == '.') {
+//     ++d;
+//     double fraction = 0.;
+//     size_t fraction_count = 0;
+//     // Read the 'B' part
+//     while (d < end && (*d >= '0' && *d <= '9')) {
+//       fraction = fraction * 10. + (double)(*d - '0');
+//       ++d;
+//       ++fraction_count;
+//     }
+//     res += fraction / pow(10., fraction_count);
+//   }
+//   if (*d == 'e' || *d == 'E') {
+//     ++d;
+//     double exp = read_double(d, end);
+//     res *= pow(10., exp);
+//   }
 
-  if (!positive)
-    res *= -1;
-  return res;
-}
+//   if (!positive)
+//     res *= -1;
+//   return res;
+// }
 
 size_t find_endline(char *data, size_t data_size, size_t start) {
   size_t end = start;
@@ -80,7 +80,7 @@ inline int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
   }
 
   // Find the new end
-  if (omp_get_thread_num() != omp_get_num_threads() - 1) {
+  if (omp_get_thread_num() != omp_get_max_threads() - 1) {
     size_t curr = *end;
     while (curr < buff_size && data[curr] != '\n') {
       curr++;
@@ -99,12 +99,8 @@ inline int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
 
   // TODO this feels like sloppy way to handle the final lines that
   // don't terminate with a newline
-  printf("Number of threads (%d) in %s\n", omp_get_num_threads(), __FUNCTION__);
-  if (omp_get_thread_num() == (omp_get_num_threads() - 1)) {
-    printf("I'm in the hack\n");
+  if (omp_get_thread_num() == (omp_get_max_threads() - 1)) {
     if (data[*end - 1] != '\n') {
-      printf("I'm adding one to n_newlines in the hack\n");
-
       *n_newlines += 1;
     }
   }
@@ -144,8 +140,6 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
     i++;
   }
 
-  // print_time(t_setup, "setup");
-
   //
   // Meta info
   //
@@ -172,7 +166,6 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
   //
   // Find new lines
   //
-  // time_t t_newlines = clock();
 
   /*
   size_t chunk_start[nthreads]
@@ -189,14 +182,13 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
 
   bool find_chunk_boundaries(data, buff_size, start, end, n_newlines)
   */
+  // clang-format off
   size_t chunk_size = (buff_size - (end + 1)) / omp_get_max_threads();
-  size_t *chunk_start =
-      (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
-  size_t *chunk_end = (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
-  size_t *chunk_n_newlines =
-      (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
-  size_t *chunk_offsets =
-      (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
+  size_t *chunk_start =      (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
+  size_t *chunk_end =        (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
+  size_t *chunk_n_newlines = (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
+  size_t *chunk_offsets =    (size_t *)malloc(omp_get_max_threads() * sizeof(size_t));
+  // clang-format on
 
   if (chunk_start == NULL || chunk_end == NULL || chunk_n_newlines == NULL ||
       chunk_offsets == NULL) {
@@ -234,7 +226,7 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
 
 #pragma omp barrier
 
-#pragma omp master
+#pragma omp single
     {
       size_t check_nnz = 0;
       for (int i = 0; i < omp_get_max_threads(); i++) {
@@ -245,18 +237,16 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
       assert(check_nnz == *nnz);
 
       chunk_offsets[0] = 0;
+      MTXIO_LOG("Offset for thread %d = %lu\n", 0, chunk_offsets[0]);
+
       for (int i = 1; i < omp_get_max_threads(); i++) {
         chunk_offsets[i] = chunk_n_newlines[i - 1] + chunk_offsets[i - 1];
         MTXIO_LOG("Offset for thread %d = %lu\n", i, chunk_offsets[i]);
       }
     }
 
-    // print_time(t_newlines, "newlines");
-    // time_t t_parse = clock();
-
     size_t t_newlines = chunk_n_newlines[t_id];
     size_t t_offset = chunk_offsets[t_id];
-
     size_t chunk_size = chunk_end[t_id] - chunk_start[t_id];
     char *local_data = (char *)malloc(chunk_size * sizeof(char *));
     char *memcpy_res =
@@ -269,7 +259,6 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
     size_t t_start = 0;
     size_t t_end = find_endline(local_data, chunk_size, t_start);
 
-#pragma omp for
     for (size_t i = 0; i < t_newlines; i++) {
       char *line_end;
       e_i[t_offset + i] = strtoul(&local_data[t_start], &line_end, 10);
@@ -284,21 +273,15 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
 
   } // End of omp parallel region
 
-  // #pragma omp parallel for schedule(static, 64)
-  //   for (size_t i = 0; i < nnz; i++) {
-  //     // sscanf(&data[line_start[i]], "%lu %lu %lf\n", &e_i[i], &e_o[i],
-  //       &e_w[i]);
-  //       char* end;
-  //       e_i[i] = strtoul(&data[line_start[i]], &end, 10);
-  //       e_o[i] = strtoul(end, &end, 10);
-  //       e_w[i] = strtod(end, &end);
-  //   }
-
-  // print_time(t_parse, "parse");
-
   printf("First line: i = %lu  j = %lu  val = %lf\n", e_i[0], e_o[0], e_w[0]);
+  printf("Second to last line:  i = %lu  j = %lu  val = %lf\n", e_i[*nnz - 2],
+         e_o[*nnz - 2], e_w[*nnz - 2]);
   printf("Last line:  i = %lu  j = %lu  val = %lf\n", e_i[*nnz - 1],
          e_o[*nnz - 1], e_w[*nnz - 1]);
+  // for (size_t i = 0; i < *nnz; i++) {
+  //   printf("# %lu   i = %lu  j = %lu  val = %lf\n", i, e_i[i], e_o[i],
+  //   e_w[i]);
+  // }
 
   //
   // Cleanup
