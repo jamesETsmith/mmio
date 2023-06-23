@@ -25,4 +25,7 @@ int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
 int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
                       size_t **e_i_p, size_t **e_o_p, double **e_w_p);
 
+double read_double(char *d, char *end);
+size_t read_int(char *d, char *end);
+
 #endif

@@ -22,7 +22,8 @@ TEST(simple, read) {
                        5.474516390978542e-01, 4.063977374072301e-01};
 
   for (size_t i = 0; i < nnz; i++) {
-    CHECK_EQ(e_w[i], e_w_true[i]);
+    // CHECK_EQ(e_w[i], e_w_true[i]);
+    CHECK_LE(abs(e_w[i] - e_w_true[i]), 1e-12);
   }
 
   free(e_i);

@@ -3,50 +3,63 @@
 #include <math.h>
 #include <stdbool.h>
 
-// double read_double(char *d, char *end) {
-//   double res = 0.0;
-//   while (d < end && !((*d >= '0' && *d <= '9') || *d == 'e' || *d == 'E' ||
-//                       *d == '-' || *d == '+' || *d == '.')) {
-//     ++d;
-//   }
-//   // Read the size
-//   bool positive = true;
-//   if (*d == '-') {
-//     positive = false;
-//     ++d;
-//   } else if (*d == '+')
-//     ++d;
+inline size_t read_int(char *d, char *end) {
+  size_t res = 0;
+  while (d < end && (*d < '0' || *d > '9'))
+    ++d;
 
-//   // Support a simple form of floating point integers
-//   // Note: this is not the most accurate or fastest strategy
-//   // (+-)AAA.BBB(eE)(+-)ZZ.YY
-//   // Read the 'A' part
-//   while (d < end && (*d >= '0' && *d <= '9')) {
-//     res = res * 10. + (double)(*d - '0');
-//     ++d;
-//   }
-//   if (*d == '.') {
-//     ++d;
-//     double fraction = 0.;
-//     size_t fraction_count = 0;
-//     // Read the 'B' part
-//     while (d < end && (*d >= '0' && *d <= '9')) {
-//       fraction = fraction * 10. + (double)(*d - '0');
-//       ++d;
-//       ++fraction_count;
-//     }
-//     res += fraction / pow(10., fraction_count);
-//   }
-//   if (*d == 'e' || *d == 'E') {
-//     ++d;
-//     double exp = read_double(d, end);
-//     res *= pow(10., exp);
-//   }
+  // Read out digit by digit
+  while (d < end && (*d >= '0' && *d <= '9')) {
+    res = res * 10 + (*d - '0');
+    ++d;
+  }
+  return res;
+}
 
-//   if (!positive)
-//     res *= -1;
-//   return res;
-// }
+inline double read_double(char *d, char *end) {
+  double res = 0.0;
+  while (d < end && !((*d >= '0' && *d <= '9') || *d == 'e' || *d == 'E' ||
+                      *d == '-' || *d == '+' || *d == '.')) {
+    ++d;
+  }
+  // Read the size
+  bool positive = true;
+  if (*d == '-') {
+    positive = false;
+    ++d;
+  } else if (*d == '+')
+    ++d;
+
+  // Support a simple form of floating point integers
+  // Note: this is not the most accurate or fastest strategy
+  // (+-)AAA.BBB(eE)(+-)ZZ.YY
+  // Read the 'A' part
+  while (d < end && (*d >= '0' && *d <= '9')) {
+    res = res * 10. + (double)(*d - '0');
+    ++d;
+  }
+  if (*d == '.') {
+    ++d;
+    double fraction = 0.;
+    size_t fraction_count = 0;
+    // Read the 'B' part
+    while (d < end && (*d >= '0' && *d <= '9')) {
+      fraction = fraction * 10. + (double)(*d - '0');
+      ++d;
+      ++fraction_count;
+    }
+    res += fraction / pow(10., fraction_count);
+  }
+  if (*d == 'e' || *d == 'E') {
+    ++d;
+    double exp = read_double(d, end);
+    res *= pow(10., exp);
+  }
+
+  if (!positive)
+    res *= -1;
+  return res;
+}
 
 size_t find_endline(char *data, size_t data_size, size_t start) {
   size_t end = start;
@@ -260,10 +273,15 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
     size_t t_end = find_endline(local_data, chunk_size, t_start);
 
     for (size_t i = 0; i < t_newlines; i++) {
-      char *line_end;
+      char *line_end = &local_data[t_start];
       e_i[t_offset + i] = strtoul(&local_data[t_start], &line_end, 10);
+      // e_i[t_offset + i] = read_int(line_end, &local_data[t_end]);
+      // printf("parse start %s\n", line_end);
       e_o[t_offset + i] = strtoul(line_end, &line_end, 10);
-      e_w[t_offset + i] = strtod(line_end, &line_end);
+      // e_o[t_offset + i] = read_int(line_end, &local_data[t_end]);
+      // e_w[t_offset + i] = strtod(line_end, &line_end);
+      e_w[t_offset + i] = read_double(line_end, &local_data[t_end]);
+      // printf("%f \n", e_w[t_offset + i]);
 
       t_start = t_end + 1;
       t_end = find_endline(local_data, chunk_size, t_start);
@@ -273,11 +291,13 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
 
   } // End of omp parallel region
 
+#ifndef NDEBUG
   printf("First line: i = %lu  j = %lu  val = %lf\n", e_i[0], e_o[0], e_w[0]);
   printf("Second to last line:  i = %lu  j = %lu  val = %lf\n", e_i[*nnz - 2],
          e_o[*nnz - 2], e_w[*nnz - 2]);
   printf("Last line:  i = %lu  j = %lu  val = %lf\n", e_i[*nnz - 1],
          e_o[*nnz - 1], e_w[*nnz - 1]);
+#endif
   // for (size_t i = 0; i < *nnz; i++) {
   //   printf("# %lu   i = %lu  j = %lu  val = %lf\n", i, e_i[i], e_o[i],
   //   e_w[i]);

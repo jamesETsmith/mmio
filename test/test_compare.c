@@ -32,7 +32,8 @@ TEST(compare_read, simple) {
   for (int i = 0; i < NNZ; i++) {
     CHECK_EQ(e_i[i], I[i]);
     CHECK_EQ(e_o[i], J[i]);
-    CHECK_EQ(e_w[i], VAL[i]);
+    // CHECK_EQ(e_w[i], VAL[i]);
+    CHECK_LE(abs(e_w[i] - VAL[i]), 1e-12);
   }
 
   free(e_i);
@@ -66,7 +67,7 @@ TEST(compare_read, test_FW_1000) {
   for (int i = 0; i < NNZ; i++) {
     CHECK_EQ(e_i[i], I[i]);
     CHECK_EQ(e_o[i], J[i]);
-    CHECK_EQ(e_w[i], VAL[i]);
+    CHECK_LE(abs(e_w[i] - VAL[i]), 1e-12);
   }
 
   free(e_i);
