@@ -6,21 +6,24 @@
 TAU_MAIN()
 
 TEST(compare_read, simple) {
-  // mtxio setup
-  size_t m, n, nnz;
-  size_t *e_i = NULL;
-  size_t *e_o = NULL;
-  double *e_w = NULL;
-  char simple_path[1024];
-  get_data_path("simple.mtx", simple_path);
-  mtx_read_parallel(simple_path, &m, &n, &nnz, &e_i, &e_o, &e_w);
+  char file_path[1024];
+  get_data_path("simple.mtx", file_path);
 
   // mmio setup
   int M, N, NNZ;
   int *I, *J;
   double *VAL;
   MM_typecode matcode;
-  mm_read_mtx_crd(simple_path, &M, &N, &NNZ, &I, &J, &VAL, &matcode);
+  int mmio_rv =
+      mm_read_mtx_crd(file_path, &M, &N, &NNZ, &I, &J, &VAL, &matcode);
+  REQUIRE_EQ(mmio_rv, 0);
+
+  // mtxio setup
+  size_t m, n, nnz;
+  size_t *e_i = NULL;
+  size_t *e_o = NULL;
+  double *e_w = NULL;
+  mtx_read_parallel(file_path, &m, &n, &nnz, &e_i, &e_o, &e_w);
 
   CHECK_EQ(m, M);
   CHECK_EQ(n, N);
@@ -38,21 +41,23 @@ TEST(compare_read, simple) {
 }
 
 TEST(compare_read, test_FW_1000) {
-  // mtxio setup
-  size_t m, n, nnz;
-  size_t *e_i = NULL;
-  size_t *e_o = NULL;
-  double *e_w = NULL;
-  char simple_path[1024];
-  get_data_path("simple.mtx", simple_path);
-  mtx_read_parallel(simple_path, &m, &n, &nnz, &e_i, &e_o, &e_w);
-
+  char file_path[1024];
+  get_data_path("test_FW_1000.mtx", file_path);
   // mmio setup
   int M, N, NNZ;
   int *I, *J;
   double *VAL;
   MM_typecode matcode;
-  mm_read_mtx_crd(simple_path, &M, &N, &NNZ, &I, &J, &VAL, &matcode);
+  int mmio_rv =
+      mm_read_mtx_crd(file_path, &M, &N, &NNZ, &I, &J, &VAL, &matcode);
+  REQUIRE_EQ(mmio_rv, 0);
+
+  // mtxio setup
+  size_t m, n, nnz;
+  size_t *e_i = NULL;
+  size_t *e_o = NULL;
+  double *e_w = NULL;
+  mtx_read_parallel(file_path, &m, &n, &nnz, &e_i, &e_o, &e_w);
 
   CHECK_EQ(m, M);
   CHECK_EQ(n, N);
