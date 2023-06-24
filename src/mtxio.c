@@ -65,7 +65,7 @@ inline double read_double(char *d, char *end) {
   return res;
 }
 
-size_t find_endline(char *data, size_t data_size, size_t start) {
+inline size_t find_endline(char *data, size_t data_size, size_t start) {
   size_t end = start;
   while (end < data_size) {
     if (data[end] != '\n') {
@@ -77,10 +77,10 @@ size_t find_endline(char *data, size_t data_size, size_t start) {
   return end;
 }
 
-void print_time(time_t t_start, const char *msg) {
-  double t_total = ((double)(clock() - t_start)) / CLOCKS_PER_SEC;
-  MTXIO_LOG("Time for %16s: %.6lf (s)\n", msg, t_total);
-}
+// void print_time(time_t t_start, const char *msg) {
+//   double t_total = ((double)(clock() - t_start)) / CLOCKS_PER_SEC;
+//   MTXIO_LOG("Time for %16s: %.6lf (s)\n", msg, t_total);
+// }
 
 inline int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
                                  size_t *end, size_t *n_newlines) {
@@ -110,6 +110,7 @@ inline int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
 
   // Count new_lines
   *n_newlines = 0;
+#pragma omp simd
   for (size_t i = *start; i < *end; i++) {
     *n_newlines += (data[i] == '\n');
   }
@@ -138,6 +139,10 @@ PIGO COO algorithm
 
 int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
                       size_t **e_i_p, size_t **e_o_p, double **e_w_p) {
+
+  //
+  // Open file
+  //
   struct stat file_stats;
   int fd = 0;
   fd = open(filename, O_RDONLY);
@@ -153,38 +158,29 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
   data = (char *)mmap(NULL, buff_size * sizeof(char), PROT_READ, MAP_SHARED, fd,
                       0);
 
+  //
+  // Skip header (TODO actually read header)
+  //
   size_t start = 0;
   size_t end = find_endline(data, buff_size, start);
 
-  int i = 0;
-  while (data[start] == '%' && i < 5) {
-#ifndef NDEBUG
-    fwrite(&data[start], 1, end - start, stdout);
-    printf("\n");
-#endif
+  while (data[start] == '%') {
     start = end + 1;
     end = find_endline(data, buff_size, start);
-
-    i++;
   }
 
   //
   // Meta info
   //
-  time_t t_meta = clock();
 
   *m = 0, *n = 0, *nnz = 0;
-
-  fwrite(&data[start], 1, end - start, stdout);
-  printf("\n");
-
-  int items_read = sscanf(&data[start], "%lu %lu %lu\n", m, n, nnz);
-  assert(items_read == 3);
+  char *end_p = NULL;
+  *m = strtoul(&data[start], &end_p, 10);
+  *n = strtoul(end_p, &end_p, 10);
+  *nnz = strtoul(end_p, &end_p, 10);
   MTXIO_LOG("m: %lu n: %lu nnz: %lu\n", *m, *n, *nnz);
-  print_time(t_meta, "meta");
 
   if (*nnz < omp_get_max_threads()) {
-    // int new_threads = *nnz / 2;
     omp_set_num_threads(1);
     fprintf(stderr,
             "[WARNING]: Number of threads greater than number of non-zero "
@@ -241,6 +237,7 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
   size_t *e_i = *e_i_p;
   size_t *e_o = *e_o_p;
   double *e_w = *e_w_p;
+
 //
 // Parse data
 //
@@ -271,11 +268,11 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
         chunk_offsets[i] = chunk_n_newlines[i - 1] + chunk_offsets[i - 1];
         MTXIO_LOG("Offset for thread %d = %lu\n", i, chunk_offsets[i]);
       }
-    }
+    } // end omp single
 
     size_t t_newlines = chunk_n_newlines[t_id];
     size_t t_offset = chunk_offsets[t_id];
-    size_t chunk_size = chunk_end[t_id] - chunk_start[t_id];
+    // size_t chunk_size = chunk_end[t_id] - chunk_start[t_id];
 
     size_t t_start = chunk_start[t_id];
     size_t t_end = find_endline(data, chunk_end[t_id], t_start);
@@ -297,28 +294,20 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
 
   } // End of omp parallel region
 
-#ifndef NDEBUG
-  printf("First line: i = %lu  j = %lu  val = %lf\n", e_i[0], e_o[0], e_w[0]);
-  printf("Second to last line:  i = %lu  j = %lu  val = %lf\n", e_i[*nnz - 2],
-         e_o[*nnz - 2], e_w[*nnz - 2]);
-  printf("Last line:  i = %lu  j = %lu  val = %lf\n", e_i[*nnz - 1],
-         e_o[*nnz - 1], e_w[*nnz - 1]);
-#endif
-  // for (size_t i = 0; i < *nnz; i++) {
-  //   printf("# %lu   i = %lu  j = %lu  val = %lf\n", i, e_i[i], e_o[i],
-  //   e_w[i]);
-  // }
+  // clang-format off
+  MTXIO_LOG("First line:           i = %lu  j = %lu  val = %lf\n", e_i[0], e_o[0], e_w[0]);
+  MTXIO_LOG("Second to last line:  i = %lu  j = %lu  val = %lf\n", e_i[*nnz - 2], e_o[*nnz - 2], e_w[*nnz - 2]);
+  MTXIO_LOG("Last line:            i = %lu  j = %lu  val = %lf\n", e_i[*nnz - 1], e_o[*nnz - 1], e_w[*nnz - 1]);
+  // clang-format on
 
   //
   // Cleanup
   //
-  // free(e_i);
-  // free(e_o);
-  // free(e_w);
-  // free(new_lines);
-  // free(line_start);
-  // free(line_end);
-  munmap(data, buff_size);
-  close(fd);
+  if (munmap(data, buff_size) != 0) {
+    fprintf(stderr, "Problem unmapping file\n");
+  }
+  if (close(fd)) {
+    fprintf(stderr, "Problem closing file\n");
+  }
   return 0;
 }
