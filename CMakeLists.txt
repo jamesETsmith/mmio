@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(mmio)
 
+include(cmake/CPM.cmake)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS
     TRUE
     CACHE BOOL "Export compile commands to build directory" FORCE)
@@ -9,6 +11,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS
 set(COMMON_FLAGS "-Wall -O3 -march=native -fPIC")
 set(CMAKE_C_FLAGS "-std=c11 ${CMAKE_C_FLAGS} ${COMMON_FLAGS}")
 set(CMAKE_CXX_FLAGS "-std=c++17 ${CMAKE_CXX_FLAGS} ${COMMON_FLAGS}")
+set(CMAKE_EXPORT_COMPILE_COMMANDS
+    TRUE
+    CACHE BOOL "Export compile commands" FORCE)
 
 find_package(OpenMP REQUIRED)
 
@@ -22,32 +27,15 @@ target_include_directories(mtxio PUBLIC include)
 target_link_libraries(mtxio OpenMP::OpenMP_C m)
 
 # Get and install fast_matrix_market
-include(FetchContent)
-FetchContent_Declare(
-  fast_matrix_market
-  GIT_REPOSITORY https://github.com/alugowski/fast_matrix_market
-  GIT_TAG main
-  GIT_SHALLOW TRUE)
-
-FetchContent_Declare(
-  PIGO
-  GIT_REPOSITORY https://github.com/GT-TDAlab/PIGO
-  GIT_TAG master
-  GIT_SHALLOW TRUE)
-FetchContent_MakeAvailable(fast_matrix_market PIGO)
+cpmaddpackage("gh:alugowski/fast_matrix_market@1.6.0")
+cpmaddpackage("gh:GT-TDAlab/PIGO@0.6")
 
 add_subdirectory(bench)
 
 option(BUILD_TESTING "Build tests for MTXIO" ON)
 if(${BUILD_TESTING})
   enable_testing()
-
-  include(FetchContent)
-  FetchContent_Declare(
-    Tau
-    GIT_REPOSITORY https://github.com/jasmcaus/tau
-    GIT_TAG dev)
-  FetchContent_MakeAvailable(Tau)
+  cpmaddpackage("gh:jasmcaus/tau#bde8709")
 
   add_subdirectory(test)
 

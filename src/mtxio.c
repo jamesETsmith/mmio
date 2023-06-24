@@ -3,7 +3,9 @@
 #include <math.h>
 #include <stdbool.h>
 
-inline size_t read_int(char *d, char *end) {
+inline size_t read_int(char **dd, char *end) {
+  char *d = *dd;
+  // printf("Starting d = %lu\n", d);
   size_t res = 0;
   while (d < end && (*d < '0' || *d > '9'))
     ++d;
@@ -13,6 +15,8 @@ inline size_t read_int(char *d, char *end) {
     res = res * 10 + (*d - '0');
     ++d;
   }
+  // printf("Final d =    %lu\n", d);
+  *dd = d;
   return res;
 }
 
@@ -120,6 +124,17 @@ inline int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
 
   return 0;
 }
+/*
+PIGO COO algorithm
+
+- Read the three integers (m,n,nnz)
+- Read all the edges
+  - Move to the appropriate starting/ending points on each thread
+  - Iterate through and count new lines
+  - (inside omp single): Count up the offsets
+  - iterate through again, but parse the data
+- Sanity checks
+*/
 
 int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
                       size_t **e_i_p, size_t **e_o_p, double **e_w_p) {
@@ -164,7 +179,7 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
   printf("\n");
 
   int items_read = sscanf(&data[start], "%lu %lu %lu\n", m, n, nnz);
-  MTXIO_LOG("items read: %d\n", items_read);
+  assert(items_read == 3);
   MTXIO_LOG("m: %lu n: %lu nnz: %lu\n", *m, *n, *nnz);
   print_time(t_meta, "meta");
 
@@ -261,33 +276,24 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
     size_t t_newlines = chunk_n_newlines[t_id];
     size_t t_offset = chunk_offsets[t_id];
     size_t chunk_size = chunk_end[t_id] - chunk_start[t_id];
-    char *local_data = (char *)malloc(chunk_size * sizeof(char *));
-    char *memcpy_res =
-        (char *)memcpy(local_data, &data[chunk_start[t_id]], chunk_size);
-    if (memcpy_res != local_data) {
-      fprintf(stderr, "Problem with allocating local data to parse\n");
-      exit(-1);
-    }
 
-    size_t t_start = 0;
-    size_t t_end = find_endline(local_data, chunk_size, t_start);
+    size_t t_start = chunk_start[t_id];
+    size_t t_end = find_endline(data, chunk_end[t_id], t_start);
 
     for (size_t i = 0; i < t_newlines; i++) {
-      char *line_end = &local_data[t_start];
-      e_i[t_offset + i] = strtoul(&local_data[t_start], &line_end, 10);
-      // e_i[t_offset + i] = read_int(line_end, &local_data[t_end]);
-      // printf("parse start %s\n", line_end);
+      char *line_end = &data[t_start];
+
+      e_i[t_offset + i] = strtoul(&data[t_start], &line_end, 10);
       e_o[t_offset + i] = strtoul(line_end, &line_end, 10);
-      // e_o[t_offset + i] = read_int(line_end, &local_data[t_end]);
       // e_w[t_offset + i] = strtod(line_end, &line_end);
-      e_w[t_offset + i] = read_double(line_end, &local_data[t_end]);
-      // printf("%f \n", e_w[t_offset + i]);
+
+      // e_i[t_offset + i] = read_int(&line_end, &local_data[t_end]);
+      // e_o[t_offset + i] = read_int(&line_end, &local_data[t_end]);
+      e_w[t_offset + i] = read_double(line_end, &data[t_end]);
 
       t_start = t_end + 1;
-      t_end = find_endline(local_data, chunk_size, t_start);
+      t_end = find_endline(data, chunk_end[t_id], t_start);
     }
-
-    free(local_data);
 
   } // End of omp parallel region
 
