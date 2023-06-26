@@ -4,9 +4,17 @@
 
 There are several great C++ projects ([PIGO](https://github.com/GT-TDAlab/PIGO) and [fast_matrix_market](https://github.com/alugowski/fast_matrix_market)) for reading matrix market files faster in serial and parallel.
 However, GraphBLAS is written in ANSI C and I wanted to try and write a matrix market reader (and eventually writer) in C so it could be used side-by-side with GraphBLAS.
-This is based heavily on the great C++ projects mentioned above and in several of the utility functions are lifted almost verbatim from those projects.
+This is based heavily on the great C++ projects mentioned above and several of the utility functions are lifted almost verbatim from those projects.
 
 :warning: This project is pre-alpha and is currently unstable. Currently only reading matrix market coordinate files with doubles is supported. Please understand there will be breaking changes.
+
+## TODOs
+- [ ] Feature: handle matrices with value types other than double
+- [ ] Feature: handle other matrix market formats like symmetric
+- [ ] Feature: add parallel write
+- [ ] Feature: Add proper CMake aliases (like `mtxio::mtxio`) to make it easier to integrate with other CMake projects
+- [ ] Feature: Clean up CMake default flags (maybe use CMake configurations?)
+- [ ] Performance: Improve parallel read performance, still slower than PIGO by 30-50%.
 
 ## Prerequisites
 - C/C++ compiler
@@ -29,3 +37,4 @@ cd ..
 perf stat -- env OMP_NUM_THREADS=12 ./build/bench/pigo_read data/n_15_0.3.mtx
 perf stat -- env OMP_NUM_THREADS=12 ./build/bench/mtxio_read data/n_15_0.3.mtx
 ```
+
