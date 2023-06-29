@@ -9,8 +9,29 @@ This is based heavily on the great C++ projects mentioned above and several of t
 :warning: This project is pre-alpha and is currently unstable. Currently only reading matrix market coordinate files with doubles is supported. Please understand there will be breaking changes.
 
 ## TODOs
-- [ ] Feature: handle matrices with value types other than double
-- [ ] Feature: handle other matrix market formats like symmetric
+
+Features required to meet specification:
+
+- [ ] Object
+  - [X] matrix
+  - [ ] vector
+- [ ] Format
+  - [X] coordinate
+  - [ ] array
+- [ ] Fields
+  - [X] real
+  - [ ] complex
+  - [ ] integer
+  - [ ] pattern (i.e. no values)
+- [ ] Symmetry
+  - [X] general
+  - [ ] symmetric
+  - [ ] skew-symmetric
+  - [ ] hermitian
+
+
+- [ ] Feature: handle inf, nan, etc
+- [ ] Feature: gracefully handle non-conformant/non-mtx files
 - [ ] Feature: add parallel write
 - [ ] Feature: Add proper CMake aliases (like `mtxio::mtxio`) to make it easier to integrate with other CMake projects
 - [ ] Feature: Clean up CMake default flags (maybe use CMake configurations?)

@@ -18,14 +18,60 @@
 #define MTXIO_LOG(...)
 #endif
 
-size_t find_endline(char *data, size_t data_size, size_t start);
-void print_time(time_t t_start, const char *msg);
-int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
-                          size_t *end, size_t *n_newlines);
-int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
-                      size_t **e_i_p, size_t **e_o_p, double **e_w_p);
+//
+// Matrix Market Enums
+//
 
-double read_double(char *d, char *end);
-size_t read_int(char **d, char *end);
+typedef enum {
+  MTX_MATRIX,
+  MTX_VECTOR,
+} MTX_OBJ;
+
+typedef enum {
+  MTX_COORD,
+  MTX_ARRAY,
+} MTX_FMT;
+
+typedef enum {
+  MTX_REAL,
+  MTX_COMPLEX,
+  MTX_INTEGER,
+  MTX_PATTERN,
+} MTX_FIELD;
+
+typedef enum {
+  MTX_GENERAL,
+  MTX_SYMMETRIC,
+  MTX_SKEW_SYMM,
+  MTX_HERMITIAN,
+} MTX_SYMM;
+
+//
+// MTXIO enums
+//
+typedef enum {
+  MTXIO_SUCCESS = 0,
+  MTXIO_PANIC = -1,
+  MTXIO_NOT_IMPLEMENTED = -99,
+} MTXIO_RESULT;
+
+MTXIO_RESULT read_header(char *data, size_t data_size);
+
+MTXIO_RESULT
+mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
+                  size_t **e_i_p, size_t **e_o_p, double **e_w_p);
+
+// Patch for pretty formatting until
+// https://github.com/llvm/llvm-project/issues/18080 is closed
+// see
+// https://github.com/travisjeffery/ClangFormat-Xcode/issues/131#issuecomment-990072302
+#define GENERIC_CASE(type, fn)                                                 \
+  type:                                                                        \
+  fn
+
+#define mtxio_read(filename, m, n, nnz, e_i_p, e_o_p, e_w_p)                   \
+  _Generic((e_w_p),                                                            \
+           GENERIC_CASE(double **, mtxio_read_parallel(filename, m, n, nnz,    \
+                                                       e_i_p, e_o_p, e_w_p)))
 
 #endif

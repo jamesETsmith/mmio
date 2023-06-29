@@ -3,7 +3,10 @@
 #include <math.h>
 #include <stdbool.h>
 
-inline size_t read_int(char **dd, char *end) {
+//
+// Utils
+//
+size_t read_int(char **dd, char *end) {
   char *d = *dd;
   // printf("Starting d = %lu\n", d);
   size_t res = 0;
@@ -20,7 +23,7 @@ inline size_t read_int(char **dd, char *end) {
   return res;
 }
 
-inline double read_double(char *d, char *end) {
+double read_double(char *d, char *end) {
   double res = 0.0;
   while (d < end && !((*d >= '0' && *d <= '9') || *d == 'e' || *d == 'E' ||
                       *d == '-' || *d == '+' || *d == '.')) {
@@ -65,7 +68,7 @@ inline double read_double(char *d, char *end) {
   return res;
 }
 
-inline size_t find_endline(char *data, size_t data_size, size_t start) {
+size_t find_endline(char *data, size_t data_size, size_t start) {
   size_t end = start;
   while (end < data_size) {
     if (data[end] != '\n') {
@@ -77,13 +80,8 @@ inline size_t find_endline(char *data, size_t data_size, size_t start) {
   return end;
 }
 
-// void print_time(time_t t_start, const char *msg) {
-//   double t_total = ((double)(clock() - t_start)) / CLOCKS_PER_SEC;
-//   MTXIO_LOG("Time for %16s: %.6lf (s)\n", msg, t_total);
-// }
-
-inline int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
-                                 size_t *end, size_t *n_newlines) {
+int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
+                          size_t *end, size_t *n_newlines) {
   // Find the new start
   if (omp_get_thread_num() != 0) {
     size_t curr = *start;
@@ -125,6 +123,7 @@ inline int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
 
   return 0;
 }
+
 /*
 PIGO COO algorithm
 
@@ -136,9 +135,79 @@ PIGO COO algorithm
   - iterate through again, but parse the data
 - Sanity checks
 */
+#define MatrixMarketBanner "%%MatrixMarket"
+#define MM_MTX_STR "matrix"
+#define MM_ARRAY_STR "array"
+#define MM_DENSE_STR "array"
+#define MM_COORDINATE_STR "coordinate"
+#define MM_SPARSE_STR "coordinate"
+#define MM_COMPLEX_STR "complex"
+#define MM_REAL_STR "real"
+#define MM_INT_STR "integer"
+#define MM_GENERAL_STR "general"
+#define MM_SYMM_STR "symmetric"
+#define MM_HERM_STR "hermitian"
+#define MM_SKEW_STR "skew-symmetric"
+#define MM_PATTERN_STR "pattern"
 
-int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
-                      size_t **e_i_p, size_t **e_o_p, double **e_w_p) {
+MTXIO_RESULT read_header(char *data, size_t data_size) {
+
+  char line[1025];
+  char *tok;
+  char const delim[2] = " ";
+
+  if (strncpy(line, data, 1024) == NULL) {
+    printf("I'M PANICKING\n");
+    return MTXIO_PANIC;
+  }
+
+  tok = strtok(line, delim);
+  size_t i = 0;
+  while (tok != NULL) {
+    if (i == 0) {
+      if (strncmp(tok, MatrixMarketBanner, strlen(MatrixMarketBanner)) != 0) {
+        return MTXIO_PANIC;
+      }
+    } else if (i == 1) {
+      if (strncmp(tok, MM_MTX_STR, strlen(MM_MTX_STR)) != 0) {
+        return MTXIO_PANIC;
+      }
+    } else if (i == 2) {
+      if (strncmp(tok, MM_COORDINATE_STR, strlen(MM_COORDINATE_STR)) != 0) {
+        return MTXIO_PANIC;
+      }
+    } else if (i == 3) {
+      if (strncmp(tok, MM_REAL_STR, strlen(MM_REAL_STR)) != 0) {
+        return MTXIO_PANIC;
+      }
+    } else if (i == 4) {
+      if (strncmp(tok, MM_GENERAL_STR, strlen(MM_GENERAL_STR)) != 0) {
+        return MTXIO_PANIC;
+      }
+    }
+    // printf("TOKEN <%s>\n", tok);
+    tok = strtok(NULL, delim);
+    i++;
+  }
+
+  return MTXIO_SUCCESS;
+}
+
+/**
+ * @brief
+ *
+ * @param filename Filename you want to read
+ * @param m number of rows
+ * @param n number of cols
+ * @param nnz numer of non-zero values
+ * @param e_i_p row vertex array pointer
+ * @param e_o_p col vertex array pointer
+ * @param e_w_p value array pointer
+ * @return int error code
+ */
+MTXIO_RESULT mtx_read_parallel(const char *filename, size_t *m, size_t *n,
+                               size_t *nnz, size_t **e_i_p, size_t **e_o_p,
+                               double **e_w_p) {
 
   //
   // Open file
@@ -149,7 +218,7 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
 
   if (fstat(fd, &file_stats) == -1) {
     fprintf(stderr, "Problem getting the stats for the file %s\n", filename);
-    exit(-1);
+    return MTXIO_PANIC;
   }
 
   size_t buff_size = file_stats.st_size;
@@ -217,7 +286,7 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
   if (chunk_start == NULL || chunk_end == NULL || chunk_n_newlines == NULL ||
       chunk_offsets == NULL) {
     fprintf(stderr, "Something went wrong during allocation\n");
-    return -1;
+    return MTXIO_PANIC;
   }
 
   for (int i = 0; i < omp_get_max_threads(); i++) {
@@ -309,5 +378,5 @@ int mtx_read_parallel(const char *filename, size_t *m, size_t *n, size_t *nnz,
   if (close(fd)) {
     fprintf(stderr, "Problem closing file\n");
   }
-  return 0;
+  return MTXIO_SUCCESS;
 }
