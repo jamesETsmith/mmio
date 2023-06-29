@@ -6,7 +6,7 @@
 //
 // Utils
 //
-size_t read_int(char **dd, char *end) {
+static inline size_t read_size_t(char **dd, char *end) {
   char *d = *dd;
   // printf("Starting d = %lu\n", d);
   size_t res = 0;
@@ -23,7 +23,8 @@ size_t read_int(char **dd, char *end) {
   return res;
 }
 
-double read_double(char *d, char *end) {
+static inline double read_double(char **dd, char *end) {
+  char *d = *dd;
   double res = 0.0;
   while (d < end && !((*d >= '0' && *d <= '9') || *d == 'e' || *d == 'E' ||
                       *d == '-' || *d == '+' || *d == '.')) {
@@ -59,16 +60,17 @@ double read_double(char *d, char *end) {
   }
   if (*d == 'e' || *d == 'E') {
     ++d;
-    double exp = read_double(d, end);
+    double exp = read_double(&d, end);
     res *= pow(10., exp);
   }
 
   if (!positive)
     res *= -1;
+  *dd = d;
   return res;
 }
 
-size_t find_endline(char *data, size_t data_size, size_t start) {
+static inline size_t find_endline(char *data, size_t data_size, size_t start) {
   size_t end = start;
   while (end < data_size) {
     if (data[end] != '\n') {
@@ -80,8 +82,9 @@ size_t find_endline(char *data, size_t data_size, size_t start) {
   return end;
 }
 
-int find_chunk_boundaries(char *data, size_t buff_size, size_t *start,
-                          size_t *end, size_t *n_newlines) {
+static inline int find_chunk_boundaries(char *data, size_t buff_size,
+                                        size_t *start, size_t *end,
+                                        size_t *n_newlines) {
   // Find the new start
   if (omp_get_thread_num() != 0) {
     size_t curr = *start;
@@ -192,6 +195,22 @@ MTXIO_RESULT read_header(char *data, size_t data_size) {
 
   return MTXIO_SUCCESS;
 }
+
+// static void read_coord_entry(size_t *x, size_t *y, double *w, char *data,
+//                              size_t *t_start, size_t i) {
+//   char *line_pos = &data[*t_start];
+
+//   x[i] = strtoul(&data[*t_start], &line_end, 10);
+//   y[i] = strtoul(line_end, &line_end, 10);
+//   // e_w[i] = strtod(line_end, &line_end);
+
+//   // e_i[i] = read_int(&line_end, &local_data[t_end]);
+//   // e_o[i] = read_int(&line_end, &local_data[t_end]);
+//   w[i] = read_double(line_end, &data[t_end]);
+
+//   *t_start = t_end + 1;
+//   t_end = find_endline(data, chunk_end[t_id], t_start);
+// }
 
 /**
  * @brief
@@ -341,24 +360,27 @@ MTXIO_RESULT mtx_read_parallel(const char *filename, size_t *m, size_t *n,
 
     size_t t_newlines = chunk_n_newlines[t_id];
     size_t t_offset = chunk_offsets[t_id];
-    // size_t chunk_size = chunk_end[t_id] - chunk_start[t_id];
-
     size_t t_start = chunk_start[t_id];
-    size_t t_end = find_endline(data, chunk_end[t_id], t_start);
+    size_t t_end = t_start;
+    char *line_pos = NULL;
 
     for (size_t i = 0; i < t_newlines; i++) {
-      char *line_end = &data[t_start];
+      line_pos = &data[t_start];
 
-      e_i[t_offset + i] = strtoul(&data[t_start], &line_end, 10);
-      e_o[t_offset + i] = strtoul(line_end, &line_end, 10);
-      // e_w[t_offset + i] = strtod(line_end, &line_end);
+      // e_i[t_offset + i] = strtoul(&data[t_start], &line_pos, 10);
+      // e_o[t_offset + i] = strtoul(line_pos, &line_pos, 10);
+      // e_w[t_offset + i] = strtod(line_pos, &line_pos);
 
-      // e_i[t_offset + i] = read_int(&line_end, &local_data[t_end]);
-      // e_o[t_offset + i] = read_int(&line_end, &local_data[t_end]);
-      e_w[t_offset + i] = read_double(line_end, &data[t_end]);
+      e_i[t_offset + i] = read_size_t(&line_pos, &data[chunk_end[t_id]]);
+      e_o[t_offset + i] = read_size_t(&line_pos, &data[chunk_end[t_id]]);
+      e_w[t_offset + i] = read_double(&line_pos, &data[chunk_end[t_id]]);
 
-      t_start = t_end + 1;
-      t_end = find_endline(data, chunk_end[t_id], t_start);
+      // Update t_end and find new end of line
+      t_end = (line_pos - &data[t_start]) + t_start;
+      if (data[t_end] != '\n') {
+        t_end = find_endline(data, chunk_end[t_id], t_end);
+      }
+      t_start = t_end + 1; // Move to the next line
     }
 
   } // End of omp parallel region

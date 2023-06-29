@@ -9,12 +9,13 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  Graph g{argv[1]};
-  cout << "number of vertices: " << g.n() << endl;
-  cout << "number of edges: " << g.m() << endl;
+  COO g{argv[1]};
 
-  cout << "vertex 0's neighbors:\n";
-  for (auto n : g.neighbors(0))
-    cout << n << endl;
+  // cout << "number of vertices: " << g.n() << endl;
+  // cout << "number of edges: " << g.m() << endl;
+
+  // cout << "vertex 0's neighbors:\n";
+  // for (auto n : g.neighbors(0))
+  //   cout << n << endl;
   return 0;
 }
