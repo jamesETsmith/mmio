@@ -17,14 +17,17 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS
 
 find_package(OpenMP REQUIRED)
 
-add_library(mmio src/mmio.c)
-set_property(TARGET mmio PROPERTY C_STANDARD 11)
-target_include_directories(mmio PUBLIC include)
-
+# Primary project
 add_library(mtxio src/mtxio.c)
 set_property(TARGET mtxio PROPERTY C_STANDARD 11)
 target_include_directories(mtxio PUBLIC include)
 target_link_libraries(mtxio OpenMP::OpenMP_C m)
+# target_compile_options(mtxio PRIVATE -fanalyzer)
+
+# Reference NIST project
+add_library(mmio src/mmio.c)
+set_property(TARGET mmio PROPERTY C_STANDARD 11)
+target_include_directories(mmio PUBLIC include)
 
 # Get and install fast_matrix_market
 cpmaddpackage("gh:alugowski/fast_matrix_market@1.6.0")

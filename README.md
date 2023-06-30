@@ -29,7 +29,7 @@ Features required to meet specification:
   - [ ] skew-symmetric
   - [ ] hermitian
 
-
+- [ ] Feature: Add sanitizer checks to CI
 - [ ] Feature: handle inf, nan, etc
 - [ ] Feature: gracefully handle non-conformant/non-mtx files
 - [ ] Feature: add parallel write

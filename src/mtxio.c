@@ -293,6 +293,14 @@ MTXIO_RESULT mtx_read_parallel(const char *filename, size_t *m, size_t *n,
   if (chunk_start == NULL || chunk_end == NULL || chunk_n_newlines == NULL ||
       chunk_offsets == NULL) {
     fprintf(stderr, "Something went wrong during allocation\n");
+    if (chunk_start != NULL)
+      free(chunk_start);
+    if (chunk_end != NULL)
+      free(chunk_end);
+    if (chunk_n_newlines != NULL)
+      free(chunk_n_newlines);
+    if (chunk_offsets != NULL)
+      free(chunk_offsets);
     return MTXIO_PANIC;
   }
 
@@ -382,6 +390,11 @@ MTXIO_RESULT mtx_read_parallel(const char *filename, size_t *m, size_t *n,
   //
   // Cleanup
   //
+  free(chunk_start);
+  free(chunk_end);
+  free(chunk_n_newlines);
+  free(chunk_offsets);
+
   if (munmap(data, buff_size) != 0) {
     fprintf(stderr, "Problem unmapping file\n");
   }
